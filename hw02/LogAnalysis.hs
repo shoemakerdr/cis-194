@@ -73,14 +73,14 @@ getInfoMsg failable =
       Failure textList
 
     Success (msgType, timestamp, textList) ->
-      Success (msgType, timestamp, unwords " " textList)
+      Success (msgType, timestamp, unwords textList)
 
 
 getLogMsg :: Failable [String] (MessageType, TimeStamp, String) -> LogMessage
 getLogMsg failable =
   case failable of
     Failure textList ->
-      Unknown $ unwords " " textList
+      Unknown $ unwords textList
 
     Success (msg, ts, info) ->
       LogMessage msg ts info
@@ -88,5 +88,5 @@ getLogMsg failable =
 
 readMaybeInt :: String -> Maybe Int
 readMaybeInt int =
-  (readMaybe int) :: Maybe Int
+  readMaybe int
 
