@@ -90,3 +90,54 @@ readMaybeInt :: String -> Maybe Int
 readMaybeInt int =
   readMaybe int
 
+
+
+-- EXERCISE 2 --
+
+
+
+insert :: LogMessage -> MessageTree -> MessageTree
+insert logMsg tree =
+  case logMsg of
+    Unknown _ ->
+      tree
+
+    LogMessage _ _ _ ->
+      case tree of
+        Leaf ->
+          Node Leaf logMsg Leaf
+
+        Node left msg right ->
+          if logMsg `lessThan` msg then
+            case left of
+              Leaf ->
+                Node (Node Leaf logMsg Leaf) msg right
+
+              Node _ _ _ ->
+                Node (insert logMsg left) msg right
+          else
+            case right of
+              Leaf ->
+                Node left msg (Node Leaf logMsg Leaf)
+
+              Node _ _ _ ->
+                Node left msg (insert logMsg right)
+
+
+lessThan :: LogMessage -> LogMessage -> Bool
+lessThan lg1 lg2 =
+  case (lg1, lg2) of
+    (LogMessage _ timestamp1 _, LogMessage _ timestamp2 _) ->
+      timestamp1 < timestamp2
+
+    _ ->
+      False
+
+
+-- EXERCISE 3 --
+
+
+build :: [LogMessage] -> MessageTree -> MessageTree
+build logMsgs tree =
+  foldl (flip insert) tree logMsgs
+
