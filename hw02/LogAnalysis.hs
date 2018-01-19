@@ -95,7 +95,6 @@ readMaybeInt int =
 -- EXERCISE 2 --
 
 
-
 insert :: LogMessage -> MessageTree -> MessageTree
 insert logMsg tree =
   case logMsg of
@@ -134,10 +133,65 @@ lessThan lg1 lg2 =
       False
 
 
+
 -- EXERCISE 3 --
 
 
-build :: [LogMessage] -> MessageTree -> MessageTree
-build logMsgs tree =
-  foldl (flip insert) tree logMsgs
+build :: [LogMessage] -> MessageTree
+build logMsgs =
+  foldl (flip insert) Leaf logMsgs
+
+
+
+-- EXERCISE 4 --
+
+
+inOrder :: MessageTree -> [LogMessage]
+inOrder tree =
+  case tree of
+    Node left logMsg right ->
+      case (left, right) of
+        (Leaf, Leaf) ->
+          [logMsg]
+
+        (Node _ _ _, Node _ _ _ ) ->
+          inOrder left ++ [logMsg] ++ inOrder right
+
+        (Node _ _ _, Leaf) ->
+          inOrder left ++ [logMsg]
+
+        (Leaf, Node _ _ _) ->
+          [logMsg] ++ inOrder right
+
+    Leaf ->
+      []
+
+
+
+-- EXERCISE 5 --
+
+
+whatWentWrong :: [LogMessage] -> [String]
+whatWentWrong logMsgs =
+  map extractInfo $ filter errorGreaterThan50 logMsgs
+
+
+errorGreaterThan50 :: LogMessage -> Bool
+errorGreaterThan50 logMsg =
+  case logMsg of
+    LogMessage (Error level) _ _ ->
+      level > 50
+
+    _ ->
+      False
+
+
+extractInfo :: LogMessage -> String
+extractInfo logMsg =
+  case logMsg of
+    LogMessage _ _ info ->
+      info
+
+    Unknown info ->
+      info
 
