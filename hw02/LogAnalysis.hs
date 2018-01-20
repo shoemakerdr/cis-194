@@ -52,43 +52,31 @@ getMsgType textList =
 
 
 getTimestamp :: Failable [String] (MessageType, [String]) -> Failable [String] (MessageType, TimeStamp, [String])
-getTimestamp failable =
-  case failable of
-    Failure textList ->
+getTimestamp (Failure textList) = Failure textList
+getTimestamp (Success (msgType, textList)) =
+  case readMaybeInt $ head textList of
+    Nothing ->
       Failure textList
 
-    Success (msgType, textList) ->
-      case readMaybeInt $ head textList of
-        Nothing ->
-          Failure textList
-
-        Just timestamp ->
-          Success (msgType, timestamp, drop 1 textList)
+    Just timestamp ->
+      Success (msgType, timestamp, drop 1 textList)
 
 
 getInfoMsg :: Failable [String] (MessageType, TimeStamp, [String]) -> Failable [String] (MessageType, TimeStamp, String)
-getInfoMsg failable =
-  case failable of
-    Failure textList ->
-      Failure textList
-
-    Success (msgType, timestamp, textList) ->
-      Success (msgType, timestamp, unwords textList)
+getInfoMsg (Failure textList) = Failure textList
+getInfoMsg (Success (msgType, timestamp, textList)) =
+  Success (msgType, timestamp, unwords textList)
 
 
 getLogMsg :: Failable [String] (MessageType, TimeStamp, String) -> LogMessage
-getLogMsg failable =
-  case failable of
-    Failure textList ->
-      Unknown $ unwords textList
-
-    Success (msg, ts, info) ->
-      LogMessage msg ts info
+getLogMsg (Failure textList) =
+  Unknown $ unwords textList
+getLogMsg (Success (msg, ts, info)) =
+  LogMessage msg ts info
 
 
 readMaybeInt :: String -> Maybe Int
-readMaybeInt int =
-  readMaybe int
+readMaybeInt int = readMaybe int
 
 
 
@@ -96,41 +84,33 @@ readMaybeInt int =
 
 
 insert :: LogMessage -> MessageTree -> MessageTree
-insert logMsg tree =
-  case logMsg of
-    Unknown _ ->
-      tree
+insert (Unknown _) tree = tree
+insert logMsg@(LogMessage _ _ _) tree =
+  case tree of
+    Leaf ->
+      Node Leaf logMsg Leaf
 
-    LogMessage _ _ _ ->
-      case tree of
-        Leaf ->
-          Node Leaf logMsg Leaf
+    Node left msg right ->
+      if logMsg `lessThan` msg then
+        case left of
+          Leaf ->
+            Node (Node Leaf logMsg Leaf) msg right
 
-        Node left msg right ->
-          if logMsg `lessThan` msg then
-            case left of
-              Leaf ->
-                Node (Node Leaf logMsg Leaf) msg right
+          Node _ _ _ ->
+            Node (insert logMsg left) msg right
+      else
+        case right of
+          Leaf ->
+            Node left msg (Node Leaf logMsg Leaf)
 
-              Node _ _ _ ->
-                Node (insert logMsg left) msg right
-          else
-            case right of
-              Leaf ->
-                Node left msg (Node Leaf logMsg Leaf)
-
-              Node _ _ _ ->
-                Node left msg (insert logMsg right)
+          Node _ _ _ ->
+            Node left msg (insert logMsg right)
 
 
 lessThan :: LogMessage -> LogMessage -> Bool
-lessThan lg1 lg2 =
-  case (lg1, lg2) of
-    (LogMessage _ timestamp1 _, LogMessage _ timestamp2 _) ->
-      timestamp1 < timestamp2
-
-    _ ->
-      False
+lessThan (LogMessage _ timestamp1 _) (LogMessage _ timestamp2 _) =
+  timestamp1 < timestamp2
+lessThan _ _ = False
 
 
 
@@ -147,24 +127,20 @@ build logMsgs =
 
 
 inOrder :: MessageTree -> [LogMessage]
-inOrder tree =
-  case tree of
-    Node left logMsg right ->
-      case (left, right) of
-        (Leaf, Leaf) ->
-          [logMsg]
+inOrder Leaf = []
+inOrder (Node left logMsg right) =
+  case (left, right) of
+    (Leaf, Leaf) ->
+      [logMsg]
 
-        (Node _ _ _, Node _ _ _ ) ->
-          inOrder left ++ [logMsg] ++ inOrder right
+    (Node _ _ _, Node _ _ _ ) ->
+      inOrder left ++ [logMsg] ++ inOrder right
 
-        (Node _ _ _, Leaf) ->
-          inOrder left ++ [logMsg]
+    (Node _ _ _, Leaf) ->
+      inOrder left ++ [logMsg]
 
-        (Leaf, Node _ _ _) ->
-          [logMsg] ++ inOrder right
-
-    Leaf ->
-      []
+    (Leaf, Node _ _ _) ->
+      [logMsg] ++ inOrder right
 
 
 
@@ -177,21 +153,12 @@ whatWentWrong logMsgs =
 
 
 errorGreaterThan50 :: LogMessage -> Bool
-errorGreaterThan50 logMsg =
-  case logMsg of
-    LogMessage (Error level) _ _ ->
-      level > 50
-
-    _ ->
-      False
+errorGreaterThan50 (LogMessage (Error level) _ _) =
+  level > 50
+errorGreaterThan50 _ = False
 
 
 extractInfo :: LogMessage -> String
-extractInfo logMsg =
-  case logMsg of
-    LogMessage _ _ info ->
-      info
-
-    Unknown info ->
-      info
+extractInfo (LogMessage _ _ info) = info
+extractInfo (Unknown info) = info
 
