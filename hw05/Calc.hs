@@ -1,5 +1,13 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
+
+module Calc where
+
+
 import ExprT (ExprT(..), reify)
 import Parser (parseExp)
+import qualified StackVM as VM
 
 
 
@@ -9,6 +17,7 @@ main = do
   print testBool
   print testMM
   print testSat
+  print testProgram
 
 
 
@@ -38,9 +47,9 @@ class Expr a where
   
   
 instance Expr ExprT where
-  lit x = Lit x
-  add x y = Add x y
-  mul x y = Mul x y
+  lit = Lit 
+  add = Add 
+  mul = Mul 
 
 
 
@@ -68,7 +77,7 @@ instance Expr Bool where
 
 
 instance Expr MinMax where
-  lit x = MinMax x
+  lit = MinMax 
   add (MinMax x) (MinMax y) = MinMax $ maximum [x, y]
   mul (MinMax x) (MinMax y) = MinMax $ minimum [x, y]
 
@@ -88,3 +97,19 @@ testBool     = testExp :: Maybe Bool
 testMM       = testExp :: Maybe MinMax
 testSat      = testExp :: Maybe Mod7
 
+
+-- EXERCISE 5
+
+
+instance Expr VM.Program where
+  lit x = [VM.PushI x]
+  add x y = x ++ y ++ [VM.Add]
+  mul x y = x ++ y ++ [VM.Mul]
+  
+  
+compile :: String -> Maybe VM.Program
+compile =
+  parseExp lit add mul
+  
+
+testProgram = testExp :: Maybe VM.Program

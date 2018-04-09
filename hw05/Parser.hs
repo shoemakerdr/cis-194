@@ -1,9 +1,11 @@
 -- Applicative parser for infix arithmetic expressions without any
 -- dependency on hackage. Builds an explicit representation of the
 -- syntax tree to fold over using client-supplied semantics.
+
 module Parser (parseExp) where
 import Control.Applicative hiding (Const)
 import Control.Arrow
+import Control.Monad (void)
 import Data.Char
 import Data.Monoid
 import Data.List (foldl')
@@ -39,7 +41,7 @@ type Parser a = State String a
 
 -- Parse one numerical digit.
 digit :: Parser Integer
-digit = State $ parseDigit
+digit = State parseDigit
     where parseDigit [] = Nothing
           parseDigit s@(c:cs)
               | isDigit c = Just (fromIntegral $ digitToInt c, cs)
@@ -52,7 +54,7 @@ num = maybe id (const negate) <$> optional (char '-') <*> (toInteger <$> some di
 
 -- Parse a single white space character.
 space :: Parser ()
-space = State $ parseSpace
+space = State parseSpace
     where parseSpace [] = Nothing
           parseSpace s@(c:cs)
               | isSpace c = Just ((), cs)
@@ -60,7 +62,7 @@ space = State $ parseSpace
 
 -- Consume zero or more white space characters.
 eatSpace :: Parser ()
-eatSpace = const () <$> many space
+eatSpace = void $ many space
 
 -- Parse a specific character.
 char :: Char -> Parser Char
@@ -71,7 +73,7 @@ char c = State parseChar
 
 -- Parse one of our two supported operator symbols.
 op :: Parser (Expr -> Expr -> Expr)
-op = const Add <$> (char '+') <|> const Mul <$> (char '*')
+op = const Add <$> char '+' <|> const Mul <$> char '*'
 
 -- Succeed only if the end of the input has been reached.
 eof :: Parser ()
